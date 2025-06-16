@@ -17,6 +17,18 @@ public class Program
                 new MySqlServerVersion(new Version(8, 0, 3))
             ));
 
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll",
+                builder =>
+                {
+                    builder
+                        .AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader();
+                });
+        });
+
         builder.Services.AddControllersWithViews();
         builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
         {
@@ -46,6 +58,7 @@ public class Program
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
+        app.UseCors("AllowAll");
 
 
         app.Run();
