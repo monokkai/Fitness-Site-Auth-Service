@@ -4,17 +4,34 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 public class ApplicationDbContext : DbContext
 {
-    public DbSet<User> Users { get; set; }
+    private readonly ILogger<ApplicationDbContext> _logger;
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-        : base(options)
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options,
+        ILogger<ApplicationDbContext> logger) : base(options)
     {
+        _logger = logger;
     }
+
+    public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfiguration(new UserConfiguration());
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving changes to database");
+            throw;
+        }
     }
 }
 

@@ -23,9 +23,10 @@ public class Program
                 builder =>
                 {
                     builder
-                        .AllowAnyOrigin()
+                        .SetIsOriginAllowed(_ => true)
                         .AllowAnyMethod()
-                        .AllowAnyHeader();
+                        .AllowAnyHeader()
+                        .AllowCredentials();
                 });
         });
 
@@ -52,15 +53,27 @@ public class Program
         builder.Services.AddScoped<IPasswordService, PasswordService>();
 
         WebApplication app = builder.Build();
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+        }
+
         app.UseHttpsRedirection();
-        app.UseStaticFiles();
         app.UseRouting();
+        app.UseCors("AllowAll");
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseStaticFiles();
+
+        app.Use(async (context, next) =>
+        {
+            var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation($"Request: {context.Request.Method} {context.Request.Path}");
+            await next();
+        });
+
         app.MapControllers();
-        app.UseCors("AllowAll");
-
-
         app.Run();
     }
 }

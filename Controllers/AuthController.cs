@@ -32,7 +32,7 @@ public class AuthController : ControllerBase
             return BadRequest(result);
         }
 
-        return StatusCode(200);
+        return Ok(result);
     }
 
     [HttpPost("auth")]
