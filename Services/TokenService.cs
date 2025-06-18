@@ -10,18 +10,24 @@ namespace auth_service.Services;
 public class TokenService : ITokenService
 {
     private readonly IConfiguration _configuration;
-    private const int TokenExpirationMinutes = 60;
+    private readonly ILogger<TokenService> _logger;
 
-    public TokenService(IConfiguration configuration)
+    public TokenService(IConfiguration configuration, ILogger<TokenService> logger)
     {
         _configuration = configuration;
+        _logger = logger;
     }
 
     public string GenerateToken(User user)
     {
-        SymmetricSecurityKey secretKey =
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]));
-        SigningCredentials credentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
+        var secretKey = _configuration["JwtSettings:SecretKey"];
+        var issuer = _configuration["JwtSettings:Issuer"];
+        var audience = _configuration["JwtSettings:Audience"];
+
+        _logger.LogInformation($"Generating token for user {user.Id} with issuer {issuer} and audience {audience}");
+
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
@@ -30,40 +36,53 @@ public class TokenService : ITokenService
             new Claim(ClaimTypes.Name, user.Username),
         };
 
-        JwtSecurityToken token = new JwtSecurityToken(
-            issuer: _configuration["JwtSettings:Issuer"],
-            audience: _configuration["JwtSettings:Audience"],
+        var token = new JwtSecurityToken(
+            issuer: issuer,
+            audience: audience,
             claims: claims,
-            expires: DateTime.Now.AddMinutes(TokenExpirationMinutes),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: credentials
         );
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        _logger.LogInformation($"Token generated successfully for user {user.Id}");
+
+        return tokenString;
     }
 
     public bool ValidateToken(string token)
     {
+        if (string.IsNullOrEmpty(token))
+        {
+            _logger.LogWarning("Token is null or empty");
+            return false;
+        }
+
         var tokenHandler = new JwtSecurityTokenHandler();
+        var secretKey = _configuration["JwtSettings:SecretKey"];
+        var issuer = _configuration["JwtSettings:Issuer"];
+        var audience = _configuration["JwtSettings:Audience"];
 
         try
         {
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"])),
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
                 ValidateIssuer = true,
-                ValidIssuer = _configuration["JwtSettings:Issuer"],
+                ValidIssuer = issuer,
                 ValidateAudience = true,
-                ValidAudience = _configuration["JwtSettings:Audience"],
+                ValidAudience = audience,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
 
+            _logger.LogInformation("Token validated successfully");
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Token validation failed");
             return false;
         }
     }

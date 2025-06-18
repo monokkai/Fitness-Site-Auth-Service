@@ -1,7 +1,10 @@
 using auth_service.Models.DTOs;
 using auth_service.Models.Entities;
 using auth_service.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace auth_service.Services;
 
@@ -11,17 +14,34 @@ public class AuthService : IAuthService
     private readonly IPasswordService _passwordService;
     private readonly ITokenService _tokenService;
     private readonly ILogger<AuthService> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public AuthService(
         ApplicationDbContext context,
         IPasswordService passwordService,
         ITokenService tokenService,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _context = context;
         _passwordService = passwordService;
         _tokenService = tokenService;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private void SetTokenCookie(string token)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTimeOffset.UtcNow.AddDays(7),
+            Path = "/"
+        };
+
+        _httpContextAccessor.HttpContext?.Response.Cookies.Append("auth_token", token, cookieOptions);
     }
 
     public async Task<AuthResultDto> Register(RegisterRequestDto request)
@@ -64,12 +84,12 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
 
             string token = _tokenService.GenerateToken(user);
+            SetTokenCookie(token);
             _logger.LogInformation($"User created successfully: {user.Id}");
 
             return new AuthResultDto
             {
                 Success = true,
-                Token = token,
                 User = new UserDto
                 {
                     Id = user.Id,
@@ -119,12 +139,12 @@ public class AuthService : IAuthService
             await _context.SaveChangesAsync();
 
             string token = _tokenService.GenerateToken(user);
+            SetTokenCookie(token);
             _logger.LogInformation($"User logged in successfully: {user.Id}");
 
             return new AuthResultDto
             {
                 Success = true,
-                Token = token,
                 User = new UserDto
                 {
                     Id = user.Id,
@@ -140,6 +160,54 @@ public class AuthService : IAuthService
             {
                 Success = false,
                 Error = "An error occurred during login. Please try again."
+            };
+        }
+    }
+
+    public async Task<AuthResultDto> GetCurrentUser()
+    {
+        try
+        {
+            var userId = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return new AuthResultDto
+                {
+                    Success = false,
+                    Error = "No authenticated user found"
+                };
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == int.Parse(userId));
+
+            if (user == null)
+            {
+                return new AuthResultDto
+                {
+                    Success = false,
+                    Error = "User not found"
+                };
+            }
+
+            return new AuthResultDto
+            {
+                Success = true,
+                User = new UserDto
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting current user");
+            return new AuthResultDto
+            {
+                Success = false,
+                Error = "An error occurred while getting current user"
             };
         }
     }
