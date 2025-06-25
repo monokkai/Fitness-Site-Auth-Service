@@ -28,12 +28,12 @@ public class Program
         builder.Services.AddCors(options =>
         {
             options.AddDefaultPolicy(builder =>
-            {
+                {
                 builder.WithOrigins("http://localhost:3000")
-                    .AllowAnyMethod()
+                        .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials();
-            });
+                });
         });
 
         builder.Services.AddControllers();
