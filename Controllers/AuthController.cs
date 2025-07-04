@@ -31,6 +31,8 @@ public class AuthController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Registration attempt for email: {Email}", request.Email);
+
             if (string.IsNullOrEmpty(request.Username) || request.Username.Length < 3)
             {
                 return BadRequest(new { success = false, message = "Username must be at least 3 characters" });
@@ -59,17 +61,22 @@ public class AuthController : ControllerBase
                 new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme))
             );
 
-            return Ok(new { 
-                success = true, 
-                user = new { 
-                    id = user.Id, 
-                    username = user.Username, 
-                    email = user.Email 
-                } 
+            _logger.LogInformation("User registered successfully: {UserId}", user.Id);
+
+            return Ok(new
+            {
+                success = true,
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email
+                }
             });
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Registration failed");
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
@@ -79,17 +86,24 @@ public class AuthController : ControllerBase
     {
         try
         {
+            _logger.LogInformation("Login attempt for email: {Email}", request.Email);
+
             if (string.IsNullOrEmpty(request.Email) || !request.Email.Contains("@"))
             {
+                _logger.LogWarning("Invalid email format: {Email}", request.Email);
                 return BadRequest(new { success = false, message = "Invalid email address" });
             }
 
             if (string.IsNullOrEmpty(request.Password))
             {
+                _logger.LogWarning("Empty password provided for email: {Email}", request.Email);
                 return BadRequest(new { success = false, message = "Password is required" });
             }
 
             var user = await _authService.ValidateUser(request.Email, request.Password);
+
+            _logger.LogInformation("User found: {UserId}", user.Id);
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -97,23 +111,35 @@ public class AuthController : ControllerBase
                 new Claim(ClaimTypes.Email, user.Email)
             };
 
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme))
+                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+                authProperties
             );
 
-            return Ok(new { 
-                success = true, 
-                user = new { 
-                    id = user.Id, 
-                    username = user.Username, 
-                    email = user.Email 
-                } 
+            _logger.LogInformation("Login successful for user: {UserId}", user.Id);
+
+            return Ok(new
+            {
+                success = true,
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email
+                }
             });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { success = false, message = ex.Message });
+            _logger.LogError(ex, "Login failed for email: {Email}", request.Email);
+            return BadRequest(new { success = false, message = "Invalid email or password" });
         }
     }
 
@@ -121,34 +147,50 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return Ok(new { success = true });
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            _logger.LogInformation("User logged out: {UserId}", userId);
+            return Ok(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Logout failed");
+            return BadRequest(new { success = false, message = "Logout failed" });
+        }
     }
 
     [HttpGet("me")]
     public async Task<IActionResult> GetCurrentUser()
     {
-        if (!User.Identity.IsAuthenticated)
-        {
-            return Unauthorized(new { success = false, message = "Not authenticated" });
-        }
-
         try
         {
+            if (!User.Identity.IsAuthenticated)
+            {
+                _logger.LogWarning("Unauthorized access attempt to /me endpoint");
+                return Unauthorized(new { success = false, message = "Not authenticated" });
+            }
+
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogInformation("Getting current user info for: {UserId}", userId);
+
             var user = await _authService.GetUserById(int.Parse(userId));
-            
-            return Ok(new { 
-                success = true, 
-                user = new { 
-                    id = user.Id, 
-                    username = user.Username, 
-                    email = user.Email 
-                } 
+
+            return Ok(new
+            {
+                success = true,
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email
+                }
             });
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to get current user");
             return BadRequest(new { success = false, message = ex.Message });
         }
     }

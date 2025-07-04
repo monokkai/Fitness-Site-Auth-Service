@@ -212,48 +212,82 @@ namespace auth_service.Services
 
         public async Task<User> RegisterUser(RegisterRequestDto request)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+            try
             {
-                throw new Exception("User with this email already exists");
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (existingUser != null)
+                {
+                    _logger.LogWarning("Registration attempt with existing email: {Email}", request.Email);
+                    throw new Exception("User with this email already exists");
+                }
+
+                var hashedPassword = _passwordService.HashPassword(request.Password);
+                var user = new User
+                {
+                    Username = request.Username,
+                    Email = request.Email,
+                    PasswordHash = hashedPassword
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("New user registered: {Email}", request.Email);
+                return user;
             }
-
-            var hashedPassword = _passwordService.HashPassword(request.Password);
-            var user = new User
+            catch (Exception ex)
             {
-                Username = request.Username,
-                Email = request.Email,
-                PasswordHash = hashedPassword
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return user;
+                _logger.LogError(ex, "Failed to register user: {Email}", request.Email);
+                throw;
+            }
         }
 
         public async Task<User> ValidateUser(string email, string password)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null)
+            try
             {
-                throw new Exception("Invalid email or password");
-            }
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                if (user == null)
+                {
+                    _logger.LogWarning("Login attempt with non-existent email: {Email}", email);
+                    throw new Exception("Invalid email or password");
+                }
 
-            if (!_passwordService.VerifyPassword(password, user.PasswordHash))
+                if (!_passwordService.VerifyPassword(password, user.PasswordHash))
+                {
+                    _logger.LogWarning("Invalid password attempt for user: {Email}", email);
+                    throw new Exception("Invalid email or password");
+                }
+
+                _logger.LogInformation("User validated successfully: {Email}", email);
+                return user;
+            }
+            catch (Exception ex)
             {
-                throw new Exception("Invalid email or password");
+                _logger.LogError(ex, "User validation failed: {Email}", email);
+                throw;
             }
-
-            return user;
         }
 
         public async Task<User> GetUserById(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            try
             {
-                throw new Exception("User not found");
+                var user = await _context.Users.FindAsync(id);
+                if (user == null)
+                {
+                    _logger.LogWarning("Attempt to get non-existent user: {Id}", id);
+                    throw new Exception("User not found");
+                }
+
+                _logger.LogInformation("User retrieved successfully: {Id}", id);
+                return user;
             }
-            return user;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get user by id: {Id}", id);
+                throw;
+            }
         }
     }
 }

@@ -6,24 +6,30 @@ namespace auth_service.Models.Entities;
 [Table("Users")]
 public class User
 {
-    [Column("UserId")]
-    public int Id { get; set; }
-
+    [Key]
+    [Column("Id")]
+    public long Id { get; set; }
+    
     [Required]
-    [MaxLength(50)]
-    public string Username { get; set; }
-
+    [StringLength(50)]
+    public string Username { get; set; } = string.Empty;
+    
     [Required]
-    [MaxLength(100)]
-    public string Email { get; set; }
-
+    [StringLength(255)]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    
     [Required]
-    public string PasswordHash { get; set; }
-
+    [StringLength(255)]
+    public string PasswordHash { get; set; } = string.Empty;
+    
     public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
+    
+    public DateTime UpdatedAt { get; set; }
+    
     public DateTime? LastLoginAt { get; set; }
-    public bool IsActive { get; set; }
+    
+    public bool IsActive { get; set; } = true;
 
     // Security - not mapped to database
     [NotMapped]
