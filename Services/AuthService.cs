@@ -310,5 +310,128 @@ namespace auth_service.Services
                 throw;
             }
         }
+
+        public async Task<AuthResultDto> LoginAsync(LoginRequestDto request)
+        {
+            try
+            {
+                var user = await ValidateUserAsync(request.Email, request.Password);
+                if (user == null)
+                {
+                    return new AuthResultDto
+                    {
+                        Token = null,
+                        User = null,
+                        Error = "Invalid email or password"
+                    };
+                }
+
+                var token = _tokenService.GenerateToken(user);
+
+                return new AuthResultDto
+                {
+                    Token = token,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email
+                    },
+                    Error = null
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during login for user {Email}", request.Email);
+                return new AuthResultDto
+                {
+                    Token = null,
+                    User = null,
+                    Error = "An error occurred during login"
+                };
+            }
+        }
+
+        public async Task<AuthResultDto> RegisterAsync(RegisterRequestDto request)
+        {
+            try
+            {
+                if (!await IsEmailUniqueAsync(request.Email))
+                {
+                    return new AuthResultDto
+                    {
+                        Token = null,
+                        User = null,
+                        Error = "Email already exists"
+                    };
+                }
+
+                if (!await IsUsernameUniqueAsync(request.Username))
+                {
+                    return new AuthResultDto
+                    {
+                        Token = null,
+                        User = null,
+                        Error = "Username already exists"
+                    };
+                }
+
+                var user = await RegisterUser(request);
+                var token = _tokenService.GenerateToken(user);
+
+                return new AuthResultDto
+                {
+                    Token = token,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email
+                    },
+                    Error = null
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during registration for user {Email}", request.Email);
+                return new AuthResultDto
+                {
+                    Token = null,
+                    User = null,
+                    Error = "An error occurred during registration"
+                };
+            }
+        }
+
+        public async Task<User?> ValidateUserAsync(string email, string password)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User not found with email: {Email}", email);
+                return null;
+            }
+
+            var isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
+            if (!isPasswordValid)
+            {
+                _logger.LogWarning("Invalid password for user: {Email}", email);
+                return null;
+            }
+
+            return user;
+        }
+
+        public async Task<bool> IsEmailUniqueAsync(string email)
+        {
+            return !await _context.Users.AnyAsync(u => u.Email == email);
+        }
+
+        public async Task<bool> IsUsernameUniqueAsync(string username)
+        {
+            return !await _context.Users.AnyAsync(u => u.Username == username);
+        }
     }
 }

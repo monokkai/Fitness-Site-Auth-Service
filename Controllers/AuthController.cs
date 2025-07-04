@@ -87,59 +87,27 @@ public class AuthController : ControllerBase
         try
         {
             _logger.LogInformation("Login attempt for email: {Email}", request.Email);
-
-            if (string.IsNullOrEmpty(request.Email) || !request.Email.Contains("@"))
+            
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
-                _logger.LogWarning("Invalid email format: {Email}", request.Email);
-                return BadRequest(new { success = false, message = "Invalid email address" });
+                return BadRequest(new { message = "Email and password are required" });
             }
 
-            if (string.IsNullOrEmpty(request.Password))
+            var result = await _authService.LoginAsync(request);
+            
+            if (result == null)
             {
-                _logger.LogWarning("Empty password provided for email: {Email}", request.Email);
-                return BadRequest(new { success = false, message = "Password is required" });
+                _logger.LogWarning("Login failed for email: {Email}", request.Email);
+                return Unauthorized(new { message = "Invalid email or password" });
             }
 
-            var user = await _authService.ValidateUser(request.Email, request.Password);
-
-            _logger.LogInformation("User found: {UserId}", user.Id);
-
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
-
-            var authProperties = new AuthenticationProperties
-            {
-                IsPersistent = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-            };
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
-                authProperties
-            );
-
-            _logger.LogInformation("Login successful for user: {UserId}", user.Id);
-
-            return Ok(new
-            {
-                success = true,
-                user = new
-                {
-                    id = user.Id,
-                    username = user.Username,
-                    email = user.Email
-                }
-            });
+            _logger.LogInformation("Login successful for email: {Email}", request.Email);
+            return Ok(new { token = result.Token, user = result.User });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Login failed for email: {Email}", request.Email);
-            return BadRequest(new { success = false, message = "Invalid email or password" });
+            _logger.LogError(ex, "Error during login for email: {Email}", request.Email);
+            return StatusCode(500, new { message = "An error occurred during login" });
         }
     }
 

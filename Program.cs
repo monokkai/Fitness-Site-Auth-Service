@@ -24,12 +24,13 @@ public class Program
 
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("AllowFrontend", policy =>
+            options.AddDefaultPolicy(policy =>
             {
                 policy
-                    .AllowAnyOrigin()
+                    .WithOrigins("http://localhost:3000")
                     .AllowAnyMethod()
-                    .AllowAnyHeader();
+                    .AllowAnyHeader()
+                    .AllowCredentials();
             });
         });
 
@@ -80,8 +81,8 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        app.UseCors();
         app.UseHttpsRedirection();
-        app.UseCors("AllowFrontend");
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
