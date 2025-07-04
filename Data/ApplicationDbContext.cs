@@ -51,6 +51,15 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.PasswordHash)
             .IsRequired();
         builder.Property(user => user.CreatedAt)
-            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            .HasColumnType("timestamp")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP")
+            .ValueGeneratedOnAdd();
+        builder.Property(user => user.UpdatedAt)
+            .HasColumnType("timestamp")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP")
+            .ValueGeneratedOnAddOrUpdate();
+        builder.Property(user => user.LastLoginAt)
+            .HasColumnType("timestamp")
+            .IsRequired(false);
     }
 }

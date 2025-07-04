@@ -23,18 +23,21 @@ public class User
     [StringLength(255)]
     public string PasswordHash { get; set; } = string.Empty;
     
+    [Column(TypeName = "timestamp")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public DateTime CreatedAt { get; set; }
     
+    [Column(TypeName = "timestamp")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdatedAt { get; set; }
     
+    [Column(TypeName = "timestamp")]
     public DateTime? LastLoginAt { get; set; }
     
     public bool IsActive { get; set; } = true;
 
-    // Security - not mapped to database
-    [NotMapped]
-    public string RefreshToken { get; set; }
+    [StringLength(255)]
+    public string? RefreshToken { get; set; }
 
-    [NotMapped]
     public DateTime? RefreshTokenExpiryTime { get; set; }
 }

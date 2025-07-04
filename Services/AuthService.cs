@@ -73,7 +73,6 @@ namespace auth_service.Services
                     Username = request.Username,
                     Email = request.Email,
                     PasswordHash = _passwordService.HashPassword(request.Password),
-                    CreatedAt = DateTime.UtcNow,
                     IsActive = true
                 };
 
@@ -214,30 +213,41 @@ namespace auth_service.Services
         {
             try
             {
-                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-                if (existingUser != null)
+                _logger.LogInformation($"Attempting to register user with email: {request.Email}");
+
+                if (await _context.Users.AnyAsync(u => u.Email == request.Email))
                 {
-                    _logger.LogWarning("Registration attempt with existing email: {Email}", request.Email);
-                    throw new Exception("User with this email already exists");
+                    _logger.LogWarning($"Email already taken: {request.Email}");
+                    throw new Exception("Email is already taken! Try another one!");
                 }
 
-                var hashedPassword = _passwordService.HashPassword(request.Password);
-                var user = new User
+                if (await _context.Users.AnyAsync(u => u.Username == request.Username))
+                {
+                    _logger.LogWarning($"Username already taken: {request.Username}");
+                    throw new Exception("Username is already taken! Try another one!");
+                }
+
+                User user = new User
                 {
                     Username = request.Username,
                     Email = request.Email,
-                    PasswordHash = hashedPassword
+                    PasswordHash = _passwordService.HashPassword(request.Password),
+                    IsActive = true
                 };
 
+                _logger.LogInformation($"Creating new user: {user.Username}");
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("New user registered: {Email}", request.Email);
+                string token = _tokenService.GenerateToken(user);
+                SetTokenCookie(token);
+                _logger.LogInformation($"User created successfully: {user.Id}");
+
                 return user;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to register user: {Email}", request.Email);
+                _logger.LogError(ex, $"Failed to register user: {request.Email}");
                 throw;
             }
         }
@@ -246,25 +256,39 @@ namespace auth_service.Services
         {
             try
             {
+                _logger.LogInformation($"Attempting to validate user with email: {email}");
+
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
                 if (user == null)
                 {
-                    _logger.LogWarning("Login attempt with non-existent email: {Email}", email);
+                    _logger.LogWarning($"Login attempt with non-existent email: {email}");
                     throw new Exception("Invalid email or password");
                 }
 
-                if (!_passwordService.VerifyPassword(password, user.PasswordHash))
+                _logger.LogInformation($"Found user with email {email}, hash in DB: {user.PasswordHash}");
+                _logger.LogInformation($"Attempting to verify password for user {email}");
+
+                bool isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
+                _logger.LogInformation($"Password verification result for {email}: {isPasswordValid}");
+
+                if (!isPasswordValid)
                 {
-                    _logger.LogWarning("Invalid password attempt for user: {Email}", email);
+                    _logger.LogWarning($"Invalid password attempt for user: {email}");
                     throw new Exception("Invalid email or password");
                 }
 
-                _logger.LogInformation("User validated successfully: {Email}", email);
+                user.LastLoginAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                string token = _tokenService.GenerateToken(user);
+                SetTokenCookie(token);
+                _logger.LogInformation($"User logged in successfully: {user.Id}");
+
                 return user;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "User validation failed: {Email}", email);
+                _logger.LogError(ex, "Error during login");
                 throw;
             }
         }
@@ -273,19 +297,16 @@ namespace auth_service.Services
         {
             try
             {
-                var user = await _context.Users.FindAsync(id);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
                 if (user == null)
                 {
-                    _logger.LogWarning("Attempt to get non-existent user: {Id}", id);
                     throw new Exception("User not found");
                 }
-
-                _logger.LogInformation("User retrieved successfully: {Id}", id);
                 return user;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get user by id: {Id}", id);
+                _logger.LogError(ex, "Error getting user by id: {Id}", id);
                 throw;
             }
         }

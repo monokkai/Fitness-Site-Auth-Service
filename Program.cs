@@ -27,10 +27,9 @@ public class Program
             options.AddPolicy("AllowFrontend", policy =>
             {
                 policy
-                    .SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost")
+                    .AllowAnyOrigin()
                     .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
+                    .AllowAnyHeader();
             });
         });
 
@@ -64,6 +63,16 @@ public class Program
         builder.Services.AddScoped<IPasswordService, PasswordService>();
 
         WebApplication app = builder.Build();
+
+        var scope = app.Services.CreateScope();
+        var passwordService = scope.ServiceProvider.GetRequiredService<IPasswordService>();
+        var testHash = passwordService.HashPassword("test123");
+        Console.WriteLine($"Test hash for 'test123': {testHash}");
+        var isValid = passwordService.VerifyPassword("test123", testHash);
+        Console.WriteLine($"Verification result: {isValid}");
+        var dbHash = "$2a$11$3O8D1kPdvXHPAWOkY4.PaOYo9q.YhwxQnQY6n5hZ9MwWbdgNxdXYy";
+        var isDbValid = passwordService.VerifyPassword("test123", dbHash);
+        Console.WriteLine($"DB hash verification result: {isDbValid}");
 
         if (app.Environment.IsDevelopment())
         {
