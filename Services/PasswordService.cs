@@ -1,5 +1,5 @@
 using auth_service.Services.Interfaces;
-using Org.BouncyCastle.Crypto.Generators;
+using BCrypt.Net;
 
 namespace auth_service.Services;
 
@@ -10,8 +10,8 @@ public class PasswordService : IPasswordService
         return BCrypt.Net.BCrypt.HashPassword(password);
     }
 
-    public bool VerifyPassword(string password, string hashPassword)
+    public bool VerifyPassword(string password, string hash)
     {
-        return BCrypt.Net.BCrypt.Verify(password, hashPassword);
+        return BCrypt.Net.BCrypt.Verify(password, hash);
     }
 }

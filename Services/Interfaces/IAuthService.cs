@@ -1,9 +1,12 @@
-namespace auth_service.Services.Interfaces;
 using auth_service.Models.DTOs;
+using auth_service.Models.Entities;
 
-public interface IAuthService
+namespace auth_service.Services.Interfaces
 {
-    Task<AuthResultDto> Register(RegisterRequestDto request);
-    Task<AuthResultDto> Login(LoginRequestDto request);
-    Task<AuthResultDto> GetCurrentUser();
+    public interface IAuthService
+    {
+        Task<User> RegisterUser(RegisterRequestDto request);
+        Task<User> ValidateUser(string email, string password);
+        Task<User> GetUserById(int id);
+    }
 }
