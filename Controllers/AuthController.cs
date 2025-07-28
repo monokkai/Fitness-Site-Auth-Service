@@ -39,7 +39,8 @@ public class AuthController : ControllerBase
             }
 
             // Более строгая проверка email через regex
-            var emailRegex = new System.Text.RegularExpressions.Regex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$");
+            var emailRegex =
+                new System.Text.RegularExpressions.Regex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$");
             if (string.IsNullOrEmpty(request.Email) || !emailRegex.IsMatch(request.Email))
             {
                 return BadRequest(new { success = false, message = "Invalid email address" });
@@ -84,17 +85,17 @@ public class AuthController : ControllerBase
         try
         {
             _logger.LogInformation("Login attempt for email: {Email}", request.Email);
-            
+
             if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
                 return BadRequest(new { message = "Email and password are required" });
             }
 
             var result = await _authService.LoginAsync(request);
-            
-            if (result == null)
+
+            if (result == null || string.IsNullOrEmpty(result.Token))
             {
-                _logger.LogWarning("Login failed for email: {Email}", request.Email);
+                _logger.LogWarning("Login failed (no token) for email: {Email}", request.Email);
                 return Unauthorized(new { message = "Invalid email or password" });
             }
 
@@ -149,7 +150,9 @@ public class AuthController : ControllerBase
                 {
                     id = user.Id,
                     username = user.Username,
-                    email = user.Email
+                    email = user.Email,
+                    createdAt = user.CreatedAt,
+                    // goal = user.Goal
                 }
             });
         }

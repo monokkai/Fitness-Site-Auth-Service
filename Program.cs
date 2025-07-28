@@ -3,6 +3,7 @@ using auth_service.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 namespace auth_service;
@@ -11,7 +12,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+        var builder = WebApplication.CreateBuilder(args);
 
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole();
@@ -39,29 +40,43 @@ public class Program
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
 
-        // Проверка конфигурации JWT
+        builder.Services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth API", Version = "v1" });
+            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                In = ParameterLocation.Header,
+                Description = "Введите JWT токен (Bearer {token})",
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT"
+            });
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    new string[] { }
+                }
+            });
+        });
+
         string? jwtIssuer = builder.Configuration["Jwt:Issuer"];
         string? jwtAudience = builder.Configuration["Jwt:Audience"];
         string? jwtKey = builder.Configuration["Jwt:SecretKey"];
 
-        if (string.IsNullOrWhiteSpace(jwtKey))
+        if (string.IsNullOrWhiteSpace(jwtKey) || string.IsNullOrWhiteSpace(jwtIssuer) ||
+            string.IsNullOrWhiteSpace(jwtAudience))
         {
-            throw new Exception(
-                "JWT SecretKey is not configured! Please set 'Jwt:SecretKey' in appsettings.json or environment variables.");
-        }
-
-        if (string.IsNullOrWhiteSpace(jwtIssuer))
-        {
-            throw new Exception(
-                "JWT Issuer is not configured! Please set 'Jwt:Issuer' in appsettings.json or environment variables.");
-        }
-
-        if (string.IsNullOrWhiteSpace(jwtAudience))
-        {
-            throw new Exception(
-                "JWT Audience is not configured! Please set 'Jwt:Audience' in appsettings.json or environment variables.");
+            throw new Exception("JWT конфигурация не заполнена! Укажите Jwt:SecretKey, Jwt:Issuer и Jwt:Audience.");
         }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
@@ -79,7 +94,6 @@ public class Program
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-
                     ValidIssuer = jwtIssuer,
                     ValidAudience = jwtAudience,
                     IssuerSigningKey = signingKey
@@ -89,7 +103,6 @@ public class Program
                 {
                     OnMessageReceived = context =>
                     {
-                        // Смотрим токен в header, если нет, пытаемся взять из куков
                         var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
                         if (string.IsNullOrEmpty(authHeader))
                         {
@@ -102,13 +115,11 @@ public class Program
 
                         return Task.CompletedTask;
                     },
-
                     OnAuthenticationFailed = context =>
                     {
                         Console.WriteLine("JWT Authentication failed: " + context.Exception.Message);
                         return Task.CompletedTask;
                     },
-
                     OnChallenge = context =>
                     {
                         context.HandleResponse();
@@ -119,11 +130,12 @@ public class Program
             });
 
         builder.Services.AddAuthorization();
+
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ITokenService, TokenService>();
         builder.Services.AddScoped<IPasswordService, PasswordService>();
 
-        WebApplication app = builder.Build();
+        var app = builder.Build();
 
         if (app.Environment.IsDevelopment())
         {
@@ -133,12 +145,9 @@ public class Program
 
         app.UseCors();
         app.UseHttpsRedirection();
-
         app.UseAuthentication();
         app.UseAuthorization();
-
         app.MapControllers();
-
         app.Run();
     }
 }

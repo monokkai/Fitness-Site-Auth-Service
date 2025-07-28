@@ -420,16 +420,23 @@ namespace auth_service.Services
 
             if (user == null)
             {
-                _logger.LogWarning("User not found with email: {Email}", email);
+                _logger.LogWarning($"Login attempt with non-existent email: {email}");
                 return null;
             }
 
-            var isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
+            _logger.LogInformation($"Found user with email {email}, verifying password...");
+
+            bool isPasswordValid = _passwordService.VerifyPassword(password, user.PasswordHash);
             if (!isPasswordValid)
             {
-                _logger.LogWarning("Invalid password for user: {Email}", email);
+                _logger.LogWarning($"Invalid password attempt for user: {email}");
                 return null;
             }
+
+            user.LastLoginAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"User validated successfully: {user.Id}");
 
             return user;
         }

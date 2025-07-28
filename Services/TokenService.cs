@@ -20,14 +20,23 @@ public class TokenService : ITokenService
 
     public string GenerateToken(User user)
     {
-        var secretKey = _configuration["JwtSettings:SecretKey"];
-        var issuer = _configuration["JwtSettings:Issuer"];
-        var audience = _configuration["JwtSettings:Audience"];
+        string? secretKey = _configuration["Jwt:SecretKey"];
+        string? issuer = _configuration["Jwt:Issuer"];
+        string? audience = _configuration["Jwt:Audience"];
+
+        if (string.IsNullOrEmpty(secretKey))
+            throw new Exception("JwtSettings:SecretKey is missing in configuration.");
+
+        if (string.IsNullOrEmpty(issuer))
+            _logger.LogWarning("JwtSettings:Issuer is missing or empty.");
+
+        if (string.IsNullOrEmpty(audience))
+            _logger.LogWarning("JwtSettings:Audience is missing or empty.");
 
         _logger.LogInformation($"Generating token for user {user.Id} with issuer {issuer} and audience {audience}");
 
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        SymmetricSecurityKey securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        SigningCredentials credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
