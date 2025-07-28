@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "VJyINPdoXLPlpLBdWg70YlYS7001hlJOuEeX2CK8KQw=",
+  "Source": "auth-service",
+  "BasePath": "_content/auth-service",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

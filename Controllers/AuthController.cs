@@ -38,7 +38,9 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Username must be at least 3 characters" });
             }
 
-            if (string.IsNullOrEmpty(request.Email) || !request.Email.Contains("@"))
+            // Более строгая проверка email через regex
+            var emailRegex = new System.Text.RegularExpressions.Regex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$");
+            if (string.IsNullOrEmpty(request.Email) || !emailRegex.IsMatch(request.Email))
             {
                 return BadRequest(new { success = false, message = "Invalid email address" });
             }
@@ -48,29 +50,24 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Password must be at least 6 characters" });
             }
 
-            var user = await _authService.RegisterUser(request);
-            var claims = new List<Claim>
+            var result = await _authService.RegisterAsync(request);
+
+            if (result.User == null || result.Token == null)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
+                return BadRequest(new { success = false, message = result.Error ?? "Registration failed" });
+            }
 
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme))
-            );
-
-            _logger.LogInformation("User registered successfully: {UserId}", user.Id);
+            _logger.LogInformation("User registered successfully: {UserId}", result.User.Id);
 
             return Ok(new
             {
                 success = true,
+                token = result.Token,
                 user = new
                 {
-                    id = user.Id,
-                    username = user.Username,
-                    email = user.Email
+                    id = result.User.Id,
+                    username = result.User.Username,
+                    email = result.User.Email
                 }
             });
         }

@@ -232,12 +232,21 @@ namespace auth_service.Services
                     Username = request.Username,
                     Email = request.Email,
                     PasswordHash = _passwordService.HashPassword(request.Password),
-                    IsActive = true
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 _logger.LogInformation($"Creating new user: {user.Username}");
                 _context.Users.Add(user);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Error of it!", ex);
+                }
 
                 string token = _tokenService.GenerateToken(user);
                 SetTokenCookie(token);
@@ -302,6 +311,7 @@ namespace auth_service.Services
                 {
                     throw new Exception("User not found");
                 }
+
                 return user;
             }
             catch (Exception ex)
@@ -376,8 +386,8 @@ namespace auth_service.Services
                     };
                 }
 
-                var user = await RegisterUser(request);
-                var token = _tokenService.GenerateToken(user);
+                User user = await RegisterUser(request);
+                string token = _tokenService.GenerateToken(user);
 
                 return new AuthResultDto
                 {

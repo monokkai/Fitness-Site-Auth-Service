@@ -1,7 +1,10 @@
 using auth_service.Services;
 using auth_service.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
 namespace auth_service;
 
 public class Program
@@ -38,25 +41,82 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
+        // Проверка конфигурации JWT
+        string? jwtIssuer = builder.Configuration["Jwt:Issuer"];
+        string? jwtAudience = builder.Configuration["Jwt:Audience"];
+        string? jwtKey = builder.Configuration["Jwt:SecretKey"];
+
+        if (string.IsNullOrWhiteSpace(jwtKey))
+        {
+            throw new Exception(
+                "JWT SecretKey is not configured! Please set 'Jwt:SecretKey' in appsettings.json or environment variables.");
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtIssuer))
+        {
+            throw new Exception(
+                "JWT Issuer is not configured! Please set 'Jwt:Issuer' in appsettings.json or environment variables.");
+        }
+
+        if (string.IsNullOrWhiteSpace(jwtAudience))
+        {
+            throw new Exception(
+                "JWT Audience is not configured! Please set 'Jwt:Audience' in appsettings.json or environment variables.");
+        }
+
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+
         builder.Services.AddAuthentication(options =>
-        {
-            options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        })
-        .AddCookie(options =>
-        {
-            options.Cookie.Name = "auth_token";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = SameSiteMode.None;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.None;
-            options.ExpireTimeSpan = TimeSpan.FromDays(7);
-            options.Events.OnRedirectToLogin = context =>
             {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                return Task.CompletedTask;
-            };
-        });
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = signingKey
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        // Смотрим токен в header, если нет, пытаемся взять из куков
+                        var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                        if (string.IsNullOrEmpty(authHeader))
+                        {
+                            var tokenFromCookie = context.Request.Cookies["auth_token"];
+                            if (!string.IsNullOrEmpty(tokenFromCookie))
+                            {
+                                context.Token = tokenFromCookie;
+                            }
+                        }
+
+                        return Task.CompletedTask;
+                    },
+
+                    OnAuthenticationFailed = context =>
+                    {
+                        Console.WriteLine("JWT Authentication failed: " + context.Exception.Message);
+                        return Task.CompletedTask;
+                    },
+
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    }
+                };
+            });
 
         builder.Services.AddAuthorization();
         builder.Services.AddScoped<IAuthService, AuthService>();
@@ -64,16 +124,6 @@ public class Program
         builder.Services.AddScoped<IPasswordService, PasswordService>();
 
         WebApplication app = builder.Build();
-
-        var scope = app.Services.CreateScope();
-        var passwordService = scope.ServiceProvider.GetRequiredService<IPasswordService>();
-        var testHash = passwordService.HashPassword("test123");
-        Console.WriteLine($"Test hash for 'test123': {testHash}");
-        var isValid = passwordService.VerifyPassword("test123", testHash);
-        Console.WriteLine($"Verification result: {isValid}");
-        var dbHash = "$2a$11$3O8D1kPdvXHPAWOkY4.PaOYo9q.YhwxQnQY6n5hZ9MwWbdgNxdXYy";
-        var isDbValid = passwordService.VerifyPassword("test123", dbHash);
-        Console.WriteLine($"DB hash verification result: {isDbValid}");
 
         if (app.Environment.IsDevelopment())
         {
@@ -83,9 +133,12 @@ public class Program
 
         app.UseCors();
         app.UseHttpsRedirection();
+
         app.UseAuthentication();
         app.UseAuthorization();
+
         app.MapControllers();
+
         app.Run();
     }
 }
