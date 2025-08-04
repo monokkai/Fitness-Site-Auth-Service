@@ -109,21 +109,20 @@ public class AuthController : ControllerBase
         }
     }
 
-    [Authorize]
     [HttpPost("logout")]
+    [Authorize]
     public async Task<IActionResult> Logout()
     {
         try
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Response.Cookies.Delete("auth_token");
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            _logger.LogInformation("User logged out: {UserId}", userId);
             return Ok(new { success = true });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Logout failed");
-            return BadRequest(new { success = false, message = "Logout failed" });
+            return BadRequest(new { success = false });
         }
     }
 
