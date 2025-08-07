@@ -38,7 +38,6 @@ public class AuthController : ControllerBase
                 return BadRequest(new { success = false, message = "Username must be at least 3 characters" });
             }
 
-            // Более строгая проверка email через regex
             var emailRegex =
                 new System.Text.RegularExpressions.Regex(@"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$");
             if (string.IsNullOrEmpty(request.Email) || !emailRegex.IsMatch(request.Email))
@@ -99,8 +98,36 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { message = "Invalid email or password" });
             }
 
+            var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, result.User.Id.ToString()),
+            new Claim(ClaimTypes.Name, result.User.Username),
+            new Claim(ClaimTypes.Email, result.User.Email)
+        };
+
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+            var authProperties = new AuthenticationProperties
+            {
+                IsPersistent = true, // Кука будет сохраняться после закрытия браузера
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
+
+            // Response.Cookies.Append("auth_token", result.Token, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict });
+
             _logger.LogInformation("Login successful for email: {Email}", request.Email);
-            return Ok(new { token = result.Token, user = result.User });
+
+            return Ok(new
+            {
+                success = true,
+                token = result.Token,
+                user = result.User
+            });
         }
         catch (Exception ex)
         {
@@ -108,15 +135,14 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { message = "An error occurred during login" });
         }
     }
-
     [HttpPost("logout")]
     [Authorize]
     public async Task<IActionResult> Logout()
     {
         try
         {
-            Response.Cookies.Delete("auth_token");
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            // Response.Cookies.Delete("auth_token");
             return Ok(new { success = true });
         }
         catch (Exception ex)
