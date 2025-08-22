@@ -60,7 +60,7 @@ public class Program
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 In = ParameterLocation.Header,
-                Description = "Введите JWT токен (Bearer {token})",
+                Description = "Enter JWT Token (Bearer {token})",
                 Name = "Authorization",
                 Type = SecuritySchemeType.Http,
                 Scheme = "bearer",
