@@ -109,7 +109,7 @@ public class AuthController : ControllerBase
 
             var authProperties = new AuthenticationProperties
             {
-                IsPersistent = true, // Кука будет сохраняться после закрытия браузера
+                IsPersistent = true,
                 ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
             };
 
@@ -117,8 +117,6 @@ public class AuthController : ControllerBase
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
-
-            // Response.Cookies.Append("auth_token", result.Token, new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict });
 
             _logger.LogInformation("Login successful for email: {Email}", request.Email);
 

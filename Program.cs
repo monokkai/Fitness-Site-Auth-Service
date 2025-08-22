@@ -89,7 +89,7 @@ public class Program
         if (string.IsNullOrWhiteSpace(jwtKey) || string.IsNullOrWhiteSpace(jwtIssuer) ||
             string.IsNullOrWhiteSpace(jwtAudience))
         {
-            throw new Exception("JWT конфигурация не заполнена! Укажите Jwt:SecretKey, Jwt:Issuer и Jwt:Audience.");
+            throw new Exception("JWT config is full! Insert Jwt:SecretKey, Jwt:Issuer и Jwt:Audience.");
         }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
