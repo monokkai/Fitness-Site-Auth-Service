@@ -1,0 +1,39 @@
+services:
+  auth-service:
+    container_name: # container name
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Database connection string
+    depends_on:
+      - auth-db
+    networks:
+      - auth-network
+
+  auth-db:
+    container_name: # container name
+    image: mysql:8.0
+    command: #  Use native password authentication plugin
+    restart: always
+    env_file:
+      - .env
+    ports:
+      # port
+    volumes:
+      # Use relative paths to mount initialization scripts and configuration files
+    tmpfs:
+      - /tmp:size=1G
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - auth-network
+
+volumes:
+  auth_db_data:
+    name: auth_db_data

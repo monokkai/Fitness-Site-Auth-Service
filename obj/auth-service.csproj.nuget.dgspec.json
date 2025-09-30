@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/auth-service.csproj": {}
+    "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/auth-service.csproj": {}
   },
   "projects": {
-    "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/auth-service.csproj": {
+    "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/auth-service.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/auth-service.csproj",
+        "projectUniqueName": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/auth-service.csproj",
         "projectName": "auth-service",
-        "projectPath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/auth-service.csproj",
+        "projectPath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/auth-service.csproj",
         "packagesPath": "/Users/mayeregor/.nuget/packages/",
-        "outputPath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/obj/",
+        "outputPath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/mayeregor/.nuget/NuGet/NuGet.Config"

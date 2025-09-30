@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "lK8v6C8BpE4=",
+  "dgSpecHash": "PMnPhg2EAYA=",
   "success": true,
-  "projectFilePath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/Github-Logger/backend/auth-service/auth-service.csproj",
+  "projectFilePath": "/Users/mayeregor/Desktop/WEB-DZ-CIFRA/HandFit-App/backend/auth-service/auth-service.csproj",
   "expectedPackageFiles": [
     "/Users/mayeregor/.nuget/packages/bcrypt.net-next/4.0.3/bcrypt.net-next.4.0.3.nupkg.sha512",
     "/Users/mayeregor/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512",
