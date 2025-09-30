@@ -1,91 +1,104 @@
-# Authentication Service (ASP.NET Core 8.0)
+# 🔐 Authentication Service
 
-## 🔐 Overview
+## Overview
 
-This is the Authentication Microservice for the **Fitness Microservices Application**, responsible for:
+The Authentication Service handles user registration, login, logout, and session management for the HandFit application. Built with ASP.NET Core and Entity Framework, it provides secure JWT-based authentication with MySQL database storage.
 
-- 🎯 **User Authentication**: Secure login and registration
-- 🔑 **JWT Token Management**: Generation and validation of Bearer tokens
-- 👤 **User Management**: Basic user operations and profile data
-- 🛡️ **Password Security**: Secure password hashing and validation
+## 🏗️ Architecture
 
-The service is built using:
+- **Framework**: ASP.NET Core 8.0 with C#
+- **Database**: MySQL with Entity Framework Core
+- **Authentication**: JWT tokens + HTTP-only cookies
+- **Password Security**: BCrypt hashing
 
-- **ASP.NET Core 8.0** — Modern, cross-platform web framework
-- **Entity Framework Core** — ORM for database operations
-- **JWT Bearer** — For token-based authentication
-- **MySQL** — Primary database
+## 🔧 Core Features
 
+### 1. User Registration
 
-### Public Routes
+- **Email validation** with regex pattern matching
+- **Username uniqueness** checking (minimum 3 characters)
+- **Password strength** validation (minimum 6 characters)
+- **BCrypt password hashing** for security
+- **Automatic JWT token** generation
 
-- `POST /api/auth/register` — New user registration request
-- `POST /api/auth/login` — User authentication request (both work for frontend part on backend)
-- `POST /api/auth/refresh-token` — Refresh JWT token
+### 2. User Authentication
 
-### Protected Routes
+- **Email/password login** with secure validation
+- **JWT token generation** with user claims
+- **HTTP-only cookie** session management
+- **Last login tracking** for user analytics
+- **Cookie-based authentication** with 7-day expiration
 
-Accessible only with valid JWT Bearer Token:
+### 3. Session Management
 
-- `GET /api/auth/profile` — Get user profile
-- `PUT /api/auth/profile` — Update user profile
-- `POST /api/auth/change-password` — Change user password
+- **Secure logout** with cookie clearing
+- **Current user retrieval** from JWT claims
+- **Session persistence** across requests
+- **Authentication state validation**
 
-> !! All protected routes require `Authorization: Bearer <token>` header
+## 📡 API Endpoints
 
-## 👤 User Model
+### Authentication Routes
 
-Core user attributes include:
-
-- Unique identifier
-- Username
-- Email (unique)
-- Password hash
-- Creation timestamp
-- Last login timestamp
-- Account status
+```
+POST /api/auth/register - User registration
+POST /api/auth/login    - User login
+POST /api/auth/logout   - User logout (requires auth)
+GET  /api/auth/me       - Get current user (requires auth)
+```
 
 ## 🔒 Security Features
 
-- **Password Hashing**: Secure password storage using modern hashing algorithms
-- **JWT Configuration**:
-  - Access tokens (short-lived)
-  - Refresh tokens (longer validity)
-- **Rate Limiting**: Prevents brute force attacks
-- **Input Validation**: Thorough request validation
+- **BCrypt password hashing** with salt
+- **JWT token validation** with claims
+- **HTTP-only cookies** to prevent XSS
+- **CORS configuration** for frontend integration
+- **Input validation** and sanitization
+- **Secure cookie options** (SameSite, Path, Expires)
 
-## 🧪 Testing
+## 🗄️ Database Schema
 
-To run the service locally:
+### Users Table
 
-1. Ensure MySQL is running
-2. Update connection string in `appsettings.json`
-3. Run migrations: `dotnet ef database update`
-4. Start the service: `dotnet run`
+```sql
+- Id (int, primary key, auto-increment)
+- Username (varchar, unique, not null)
+- Email (varchar, unique, not null)
+- PasswordHash (varchar, not null)
+- IsActive (boolean, default true)
+- CreatedAt (datetime, not null)
+- UpdatedAt (datetime, not null)
+- LastLoginAt (datetime, nullable)
+```
 
-## 🔐 Authentication Flow
+## 🚀 Quick Start
 
-1. Client sends credentials
-2. Service validates credentials
-3. On success:
-   - Generates JWT token
-   - Returns token with user info
-4. Client uses token for subsequent requests
-5. Service validates token on protected endpoints
-
----
-
-- `nginx-service` --> https://github.com/monokkai/Fitness-Site-Nginx-Service
-- `auth-service` --> https://github.com/monokkai/Fitness-Site-Auth-Service 📍 U're here
-- `rewards-service` --> https://github.com/monokkai/Fitness-Site-Rewards-Service
-- `frontend` --> https://github.com/monokkai/Fitness-Site-Front
-
----
-
-## 🐳 Docker Database Commands
+### Run Service
 
 ```bash
-docker exec -it auth-db mysql -u root -phandfit_root
-
-docker exec auth-db mysql -uhandfit_user -phandfit_pass -e "USE handfit_db; SELECT UserId, Username, Email, CreatedAt, LastLoginAt, IsActive FROM Users;"
+cd deploy
+docker-compose up --build
 ```
+
+## 🔄 Service Integration
+
+- **API Gateway**: Routes authentication requests
+- **Users Service**: Shares user data for profiles
+- **Training Service**: Validates user sessions
+- **Frontend**: Receives JWT tokens and manages sessions
+
+## 📊 Logging & Monitoring
+
+- **Structured logging** with Microsoft.Extensions.Logging
+- **Authentication events** tracking
+- **Error handling** with detailed messages
+- **Security event logging** (failed logins, registrations)
+- **Performance monitoring** for database operations
+
+## 🛡️ Error Handling
+
+- **Validation errors** with descriptive messages
+- **Duplicate email/username** detection
+- **Password strength** enforcement
+- **Database connection** error handling
+- **JWT token validation** errors
